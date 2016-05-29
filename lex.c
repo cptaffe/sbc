@@ -10,8 +10,6 @@
 #include "./lex.h"
 #include "./token.h"
 
-const size_t kLexError = (size_t)-1;
-
 void lex_emit(Lexer *l, Token t) {
   TokenList *tl = (TokenList *)calloc(1, sizeof(TokenList));
   tl->token = t;
@@ -59,9 +57,7 @@ size_t lex_keyword(Lexer *l) {
         }
       }
       // not a known keyword
-      lex_emit(l, (Token){
-                      .type = kTokenTypeError, .error = "unknown keyword",
-                  });
+      lex_emit(l, (Token){.type = kTokenTypeError, .error = "unknown keyword"});
       return kLexError;
     } else {
       // erronious character
@@ -75,9 +71,8 @@ size_t lex_keyword(Lexer *l) {
     }
   }
   // unexpected eof
-  lex_emit(l, (Token){
-                  .type = kTokenTypeError, .error = "unexpected eof in keyword",
-              });
+  lex_emit(l, (Token){.type = kTokenTypeError,
+                      .error = "unexpected eof in keyword"});
   return kLexError;
 }
 
@@ -103,6 +98,225 @@ size_t lex_identifier(Lexer *l) {
       const size_t s = 100;
       char *e = (char *)calloc(s, sizeof(char));
       snprintf(e, s, "unexpected character '%c', expected identifier", c);
+      lex_emit(l, (Token){.type = kTokenTypeError, .error = e});
+      return kLexError;
+    }
+  }
+  // unexpected eof
+  lex_emit(l, (Token){.type = kTokenTypeError,
+                      .error = "unexpected eof in identifier"});
+  return kLexError;
+}
+
+size_t lex_hex_number(Lexer *l) {
+  enum { kPostNumeralFunc };
+  char c;
+  for (size_t i = 0; (c = *l->input); i++, l->input++) {
+    if ((c >= '0' && c <= '9') || (c >= 'a' || c <= 'f') || c == '_') {
+      // hexadecimal digits, fuck uppercase letters
+    } else if (i > 0) {
+      return kPostNumeralFunc;
+    } else {
+      // erronious character
+      const size_t s = 100;
+      char *e = (char *)calloc(s, sizeof(char));
+      snprintf(e, s, "unexpected character '%c', expected hex digit", c);
+      lex_emit(l, (Token){.type = kTokenTypeError, .error = e});
+      return kLexError;
+    }
+  }
+  // unexpected eof
+  lex_emit(l, (Token){.type = kTokenTypeError,
+                      .error = "unexpected eof in hex number"});
+  return kLexError;
+}
+
+size_t lex_octal_number(Lexer *l) {
+  enum { kPostNumeralFunc };
+  char c;
+  for (size_t i = 0; (c = *l->input); i++, l->input++) {
+    if ((c >= '0' && c <= '7') || c == '_') {
+      // octal digits
+    } else if (i > 0) {
+      return kPostNumeralFunc;
+    } else {
+      // erronious character
+      const size_t s = 100;
+      char *e = (char *)calloc(s, sizeof(char));
+      snprintf(e, s, "unexpected character '%c', expected octal digit", c);
+      lex_emit(l, (Token){.type = kTokenTypeError, .error = e});
+      return kLexError;
+    }
+  }
+  // unexpected eof
+  lex_emit(l, (Token){.type = kTokenTypeError,
+                      .error = "unexpected eof in ocatal number"});
+  return kLexError;
+}
+
+size_t lex_decimal_number(Lexer *l) {
+  enum { kPostNumeralFunc };
+  char c;
+  for (size_t i = 0; (c = *l->input); i++, l->input++) {
+    if ((c >= '0' && c <= '9') || c == '_') {
+      // decimal digits
+    } else if (i > 0) {
+      return kPostNumeralFunc;
+    } else {
+      // erronious character
+      const size_t s = 100;
+      char *e = (char *)calloc(s, sizeof(char));
+      snprintf(e, s, "unexpected character '%c', expected decimal digit", c);
+      lex_emit(l, (Token){.type = kTokenTypeError, .error = e});
+      return kLexError;
+    }
+  }
+  // unexpected eof
+  lex_emit(l, (Token){.type = kTokenTypeError,
+                      .error = "unexpected eof in decimal number"});
+  return kLexError;
+}
+
+size_t lex_binary_number(Lexer *l) {
+  enum { kPostNumeralFunc };
+  char c;
+  for (size_t i = 0; (c = *l->input); i++, l->input++) {
+    if ((c >= '0' && c <= '1') || c == '_') {
+      // decimal digits
+    } else if (i > 0) {
+      return kPostNumeralFunc;
+    } else {
+      // erronious character
+      const size_t s = 100;
+      char *e = (char *)calloc(s, sizeof(char));
+      snprintf(e, s, "unexpected character '%c', expected binary digit", c);
+      lex_emit(l, (Token){.type = kTokenTypeError, .error = e});
+      return kLexError;
+    }
+  }
+  // unexpected eof
+  lex_emit(l, (Token){.type = kTokenTypeError,
+                      .error = "unexpected eof in binary number"});
+  return kLexError;
+}
+
+size_t lex_prefix_number(Lexer *l) {
+  enum { kHexFunc, kOctalFunc, kBinaryFunc };
+  char c = *l->input++;
+  if (c) {
+    if (c == 'x') {
+      // hexadecimal number
+      return kHexFunc;
+    } else if (c == 'c') {
+      // octal number
+      return kOctalFunc;
+    } else if (c == 'b') {
+      // binary number
+      return kBinaryFunc;
+    } else {
+      // unexpected character
+      lex_emit(l, (Token){.type = kTokenTypeError,
+                          .error = "unknown prefix in number"});
+      return kLexError;
+    }
+  }
+  // unexpected eof
+  lex_emit(l, (Token){.type = kTokenTypeError,
+                      .error = "unexpected eof in number prefix"});
+  return kLexError;
+}
+
+// Lex a number:
+// 0c1, 0c01, 0x4f, 0b101_1011, 123, 0.34e6
+size_t lex_number(Lexer *l) {
+  enum { kDecimal, kPrefix };
+  // read something
+  char c = *l->input++;
+  if (c) {
+    if (c >= '1' && c <= '9') {
+      // decimal number
+      return kDecimal;
+    } else if (c == '0') {
+      // a prefix
+      return kPrefix;
+    } else {
+      // unexpected character
+      lex_emit(l, (Token){.type = kTokenTypeError,
+                          .error = "unexpected character in number"});
+      return kLexError;
+    }
+  }
+  // unexpected eof
+  lex_emit(
+      l, (Token){.type = kTokenTypeError, .error = "unexpected eof in number"});
+  return kLexError;
+}
+
+size_t lex_assignment(Lexer *l) {
+  enum { kExprFunc };
+  char c = *l->input++;
+  if (c) {
+    if (c == '=') {
+      scan_whitespace(l);
+      return kExprFunc;
+    } else {
+      // erronious character
+      const size_t s = 100;
+      char *e = (char *)calloc(s, sizeof(char));
+      snprintf(e, s, "unexpected character '%c' in assignment", c);
+      lex_emit(l, (Token){.type = kTokenTypeError, .error = e});
+      return kLexError;
+    }
+  }
+  // unexpected eof
+  lex_emit(l, (Token){.type = kTokenTypeError,
+                      .error = "unexpected eof in identifier"});
+  return kLexError;
+}
+
+size_t lex_expression(Lexer *l) {
+  enum { kIdentFunc, kCharFunc, kNumFunc, kTermFunc };
+  char c = *l->input;
+  if (c) {
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
+      // identifier
+      return kIdentFunc;
+    } else if (c == '\'') {
+      // character literal
+      return kCharFunc;
+    } else if (c >= '0' && c <= '9') {
+      // numeric literal
+      return kNumFunc;
+    } else if (c == ';') {
+      // statement termination
+      return kTermFunc;
+    } else {
+      // erronious character
+      const size_t s = 100;
+      char *e = (char *)calloc(s, sizeof(char));
+      snprintf(e, s, "unexpected character '%c' in expression", c);
+      lex_emit(l, (Token){.type = kTokenTypeError, .error = e});
+      return kLexError;
+    }
+  }
+  // expected eof
+  return kLexTerminal;
+}
+
+size_t lex_terminal(Lexer *l) {
+  enum { kPostExpr };
+  char c = *l->input++;
+  if (c) {
+    if (c == ';') {
+      // statement termination
+      lex_emit(l, (Token){.type = kTokenTypeExprTerm});
+      scan_whitespace(l);
+      return kPostExpr;
+    } else {
+      // erronious character
+      const size_t s = 100;
+      char *e = (char *)calloc(s, sizeof(char));
+      snprintf(e, s, "unexpected character '%c' in terminal", c);
       lex_emit(l, (Token){
                       .type = kTokenTypeError, .error = e,
                   });
@@ -110,92 +324,38 @@ size_t lex_identifier(Lexer *l) {
     }
   }
   // unexpected eof
-  lex_emit(l,
-           (Token){
-               .type = kTokenTypeError, .error = "unexpected eof in identifier",
-           });
+  lex_emit(l, (Token){.type = kTokenTypeError,
+                      .error = "unexpected eof in identifier"});
   return kLexError;
 }
 
-size_t lex_assignment(Lexer *l) {
-  enum { kExprFunc };
-  char c = *l->input;
-  l->input++;
-  if (c == '=') {
-    scan_whitespace(l);
-    return kExprFunc;
-  } else {
-    // erronious character
-    const size_t s = 100;
-    char *e = (char *)calloc(s, sizeof(char));
-    snprintf(e, s, "unexpected character '%c' in assignment", c);
-    lex_emit(l, (Token){
-                    .type = kTokenTypeError, .error = e,
-                });
-    return kLexError;
-  }
-}
-
-size_t lex_expression(Lexer *l) {
-  enum { kIdentFunc, kCharFunc, kNumFunc, kTermFunc };
-  char c = *l->input;
-  if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
-    // identifier
-    return kIdentFunc;
-  } else if (c == '\'') {
-    // character literal
-    return kCharFunc;
-  } else if (c >= '0' && c <= '9') {
-    // numeric literal
-    return kNumFunc;
-  } else if (c == ';') {
-    // statement termination
-    return kTermFunc;
-  } else {
-    // erronious character
-    const size_t s = 100;
-    char *e = (char *)calloc(s, sizeof(char));
-    snprintf(e, s, "unexpected character '%c' in expression", c);
-    lex_emit(l, (Token){
-                    .type = kTokenTypeError, .error = e,
-                });
-    return kLexError;
-  }
+size_t lex_possible_eof(Lexer *l) {
+  enum { kNotEofFunc };
+  return (*l->input) ? kNotEofFunc : kLexTerminal;
 }
 
 // possible state map
 // lex_keyword -> lex_identifier -> lex_assign ->
 void lex(Lexer *l, States states) {
   size_t f;
-  do {
+  for (;;) {
     f = states.func(l);
-    printf("i = %zu\n", f);
-    assert(f < states.size);
+    if (f == kLexError || f == kLexTerminal) {
+      // Terminate
+      break;
+    }
+    if (f >= states.size) {
+      // out of bounds error
+      lex_emit(l, (Token){.type = kTokenTypeError,
+                          .error = "State function index out of bounds"});
+      break;
+    }
     states = states.states[f];
-  } while (f != kLexError);
+  }
 }
 
-int main() {
-  Lexer lexer = (Lexer){.input = "var _h2 = jj;"};
-
-  // Lexing state map
-  States s5[] = {(States){
-      .func = lex_identifier,
-  }};
-  States s4[] = {(States){.func = lex_expression,
-                          .states = s5,
-                          .size = sizeof(s5) / sizeof(States)}};
-  States s3[] = {(States){.func = lex_assignment,
-                          .states = s4,
-                          .size = sizeof(s4) / sizeof(States)}};
-  States s2[] = {(States){.func = lex_identifier,
-                          .states = s3,
-                          .size = sizeof(s3) / sizeof(States)}};
-  States s1 = (States){
-      .func = lex_keyword, .states = s2, .size = sizeof(s2) / sizeof(States)};
-
-  lex(&lexer, s1);
-  for (TokenList *l = lexer.head; l != NULL; l = l->next) {
+void lex_pprint(Lexer *lexer) {
+  for (TokenList *l = lexer->head; l != NULL; l = l->next) {
     Token t = l->token;
     switch (t.type) {
       case kTokenTypeChar:
@@ -203,7 +363,6 @@ int main() {
         break;
       case kTokenTypeError:
         printf("error: '%s'\n", t.error);
-        free(t.error);
         break;
       case kTokenTypeFloat:
         printf("float: %f\n", t.floatng);
@@ -226,6 +385,9 @@ int main() {
         break;
       case kTokenTypeString:
         printf("string: '%s'\n", t.string);
+        break;
+      case kTokenTypeExprTerm:
+        printf("expression terminator ';'\n");
         break;
     }
     free(l);

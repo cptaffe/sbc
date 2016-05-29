@@ -19,6 +19,7 @@ typedef struct {
     kTokenTypeInteger,
     kTokenTypeFloat,
     kTokenTypeChar,
+    kTokenTypeExprTerm,  // ;
   } type;
   union {
     char *error, *string, *ident;
