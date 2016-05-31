@@ -3,6 +3,7 @@
 #ifndef TOKEN_H_
 #define TOKEN_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 typedef enum {
@@ -22,12 +23,10 @@ typedef struct {
     kTokenTypeExprTerm,  // ;
   } type;
   union {
-    char *error, *string, *ident;
+    char *token, *error;
     Keyword keyword;
-    uint64_t integer;
-    double floatng;
-    char character;
   };
+  size_t col, line;
 } Token;
 
 typedef struct TokenList {

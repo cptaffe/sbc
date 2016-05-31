@@ -2,6 +2,7 @@
 #ifndef LEX_H_
 #define LEX_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #include "token.h"
@@ -14,6 +15,7 @@ typedef struct Lexer {
 
 typedef size_t (*StateFunc)(Lexer *);
 typedef struct States {
+  char *name;  // debugging
   StateFunc func;
   // Array of possible next states
   struct States *states;
@@ -22,11 +24,11 @@ typedef struct States {
 
 void lex(Lexer *l, States s);
 void lex_emit(Lexer *l, Token t);
-void lex_pprint(Lexer *l);
+void lex_pprint(Lexer *l, bool debug);
 
 enum {
   // reserve 4 bits for enumerated values
-  kLexError = (sizeof(size_t) * 8) - 16,
+  kLexError = 0xffff - 0x10,
   kLexTerminal
 };
 

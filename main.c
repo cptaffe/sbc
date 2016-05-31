@@ -5,29 +5,43 @@
 int main() {
   Lexer lexer = (Lexer){.input = "var _h2 = jj; var a = haza;"};
 
-  // Lexing state map
-  States s1, s2[1], s3[1], s4[1], s5[4], s6[1], s7[1];
-  s7[0] = (States){.func = lex_possible_eof,
-                   .states = &s1,
-                   .size = sizeof(s1) / sizeof(States)};
-  s6[0] = (States){
-      .func = lex_terminal, .states = s7, .size = sizeof(s7) / sizeof(States)};
-  s5[0] = (States){.func = lex_identifier,
-                   .states = s6,
-                   .size = sizeof(s6) / sizeof(States)};
-  s4[0] = (States){.func = lex_expression,
-                   .states = s5,
-                   .size = sizeof(s5) / sizeof(States)};
-  s3[0] = (States){.func = lex_assignment,
-                   .states = s4,
-                   .size = sizeof(s4) / sizeof(States)};
-  s2[0] = (States){.func = lex_identifier,
-                   .states = s3,
-                   .size = sizeof(s3) / sizeof(States)};
-  s1 = (States){
-      .func = lex_keyword, .states = s2, .size = sizeof(s2) / sizeof(States)};
-  s5[3] = s1;
+  enum { kKeyword, kIdent, kAssign, kExpr, kPostExpr, kTerm, kEof, kSize };
+  States s[kSize][kSize] = {
+          // keyword -> ident
+          [kKeyword] = {{.name = "kKeyword",
+                         .func = lex_keyword,
+                         .states = s[kIdent],
+                         .size = sizeof(s[kIdent]) / sizeof(States)}},
+          // id -> assign
+          [kIdent] = {{.name = "kIdent",
+                       .func = lex_identifier,
+                       .states = s[kAssign],
+                       .size = sizeof(s[kAssign]) / sizeof(States)}},
+          // assign -> expr
+          [kAssign] = {{.name = "kAssign",
+                        .func = lex_assignment,
+                        .states = s[kExpr],
+                        .size = sizeof(s[kExpr]) / sizeof(States)}},
+          // expr -> term
+          [kExpr] = {{.name = "kExpr",
+                      .func = lex_expression,
+                      .states = s[kPostExpr],
+                      .size = sizeof(s[kPostExpr]) / sizeof(States)}},
+          // id -> expr, terminal -> eof
+          [kPostExpr] = {[0] = {.name = "kPostExpr[0]",
+                                .func = lex_identifier,
+                                .states = s[kExpr],
+                                .size = sizeof(s[kExpr]) / sizeof(States)},
+                         [3] = {.name = "kPostExpr[3]",
+                                .func = lex_terminal,
+                                .states = s[kEof],
+                                .size = sizeof(s[kEof]) / sizeof(States)}},
+          // eof -> keyword
+          [kEof] = {{.name = "kEof",
+                     .func = lex_possible_eof,
+                     .states = s[kKeyword],
+                     .size = sizeof(s[kKeyword]) / sizeof(States)}}};
 
-  lex(&lexer, s1);
-  lex_pprint(&lexer);
+  lex(&lexer, s[0][0]);
+  lex_pprint(&lexer, false);
 }
